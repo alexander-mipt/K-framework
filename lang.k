@@ -7,19 +7,14 @@ endmodule
 
 module LANG // by default: main semantic module
 	imports LANG-SYNTAX
-	rule func => expr
+	imports INT
 
+	//rule -I => neg I
+	// rule ToInt(I) => {I}
 
-	rule isYellow(Banana()) => true
-	rule isYellow(Blueberry()) => false
-
-	rule isBlueOrYellow(F) => isBlue(F) orBool isYellow(F)
-
-	rule isBlue(Blueberry()) => true
-	rule isBlue(Banana()) => false
-  
-
-
+	rule I1 + I2 => I1 +Int I2
+	rule I1 - I2 => I1 -Int I2
+	rule I1 * I2 => I1 *Int I2
 
 /*
 syntax Int ::= r"[1-9][0-9]*" [token]
