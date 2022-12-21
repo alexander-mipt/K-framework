@@ -13,6 +13,7 @@ module LANG // by default: main semantic module
 	// rule ToInt(I) => {I}
 
 	rule I1 + I2 => I1 +Int I2
+	rule - I => 0 -Int I
 	rule I1 - I2 => I1 -Int I2
 	rule I1 * I2 => I1 *Int I2
 
