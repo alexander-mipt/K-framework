@@ -1,3 +1,3 @@
 module FUNCTIONS // required for main syntax module
-	syntax Function ::= "func"
+	// syntax Function ::= "func"
 endmodule
