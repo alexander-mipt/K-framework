@@ -1,10 +1,22 @@
 requires "functions.k"
 requires "expressions.k"
 module LANG-SYNTAX // by default: main yntax module
-	
-module LANG-SEMANTICS // by default: main semantic module
+imports FUNCTIONS
+imports EXPRESSIONS
+endmodule
+
+module LANG // by default: main semantic module
 	imports LANG-SYNTAX
 	rule func => expr
+
+
+	rule isYellow(Banana()) => true
+	rule isYellow(Blueberry()) => false
+
+	rule isBlueOrYellow(F) => isBlue(F) orBool isYellow(F)
+
+	rule isBlue(Blueberry()) => true
+	rule isBlue(Banana()) => false
   
 
 
