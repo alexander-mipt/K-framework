@@ -17,8 +17,8 @@ module IMP-SYNTAX
                 Block "else" Block [strict(1)]
             |	"while" "(" BExp ")" Block
             >	Stmt Stmt   [left]
-    syntax	Pgm	::=	"int" Ids ";" Stmt
-    syntax	Ids	::= List{Id,","}
+//     syntax	Ids	::= List{Id,","}
+//     syntax	Pgm	::=	"int" Ids ";" Stmt
 endmodule
 
 module IMP
