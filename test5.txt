@@ -1,0 +1,12 @@
+function main() {
+    print(median(1., 2.), "\n");
+    print(sqrt(2.), "\n");
+}
+
+function median(a, b) {
+    return (a + b) / 2.;
+}
+
+function builtin(a) {
+    return sqrt(a);
+}

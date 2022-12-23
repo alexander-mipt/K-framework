@@ -7,7 +7,7 @@ function main() {
 	for (i = 0; i < 10; ++i) {
 		arr[i] = i;
 	}
-	print("Reault:\t");
+	print("Result:\t");
 	if (z > 7) {
 		print(arr[8]);
 	} else {

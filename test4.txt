@@ -1,0 +1,10 @@
+function main() {
+    var i = 1.0;
+    var idx = 0;
+    for(idx = 0; idx < 10; ++idx) {
+        i = i + 1.;
+        if (idx % 2 == 0) {
+            print("Result: ", idx, ") ", i * 100., "\n");
+        }
+    }
+}

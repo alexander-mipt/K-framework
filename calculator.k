@@ -1,27 +1,22 @@
 module CALCULATOR-SYNTAX
   imports DOMAINS-SYNTAX
+  imports FLOAT-SYNTAX
 
 // Syntax
-
   syntax Id ::= "main" [token]
 
 // Declarations
-
-
   syntax Stmt ::= "var" Exps ";"
                 | "function" Id "(" Ids ")" Block
 
 // Expressions
-
-
-  syntax Exp ::= Int | Bool | String | Id
+  syntax Exp ::= Int | Bool | String | Id | Float
                | "(" Exp ")"             [bracket]
                | "++" Exp
-               > Exp "[" Exps "]"        [strict]
+            //    > Exp "[" Exps "]"        [strict]
                > Exp "(" Exps ")"        [strict]
                | "-" Exp                 [strict]
-               | "sizeOf" "(" Exp ")"    [strict]
-               | "read" "(" ")"
+            //    | "sizeOf" "(" Exp ")"    [strict]
                > left:
                  Exp "*" Exp             [strict, left]
                | Exp "/" Exp             [strict, left]
@@ -40,8 +35,8 @@ module CALCULATOR-SYNTAX
                > left:
                  Exp "&&" Exp            [strict(1), left]
                | Exp "||" Exp            [strict(1), left]
-               > "spawn" Block
                > Exp "=" Exp             [strict(2), right]
+               | "sqrt" "(" Exp ")"      [strict, non-assoc]
 
 
   syntax Ids  ::= List{Id,","}           [klabel(Exps)]
@@ -54,8 +49,6 @@ module CALCULATOR-SYNTAX
   syntax Ids ::= Bottoms
 
 // Statements
-
-
   syntax Block ::= "{" "}"
                 | "{" Stmt "}"
 
@@ -68,30 +61,12 @@ module CALCULATOR-SYNTAX
                 | "return" Exp ";"                      [strict]
                 | "return" ";"                          [macro]
                 | "print" "(" Exps ")" ";"              [strict]
-// NOTE: print strict allows non-deterministic evaluation of its arguments
-// Either keep like this but document, or otherwise make Exps seqstrict.
-// Of define and use a different expression list here, which is seqstrict.
-                | "try" Block "catch" "(" Id ")" Block
-                | "throw" Exp ";"                       [strict]
-                | "join" Exp ";"                        [strict]
-                | "acquire" Exp ";"                     [strict]
-                | "release" Exp ";"                     [strict]
-                | "rendezvous" Exp ";"                  [strict]
-
 
   syntax Stmt ::= Stmt Stmt                          [right]
 
-// I wish I were able to write the following instead, but confuses the parser.
-//
-// syntax Stmts ::= List{Stmt,""}
-// syntax Top ::= Stmt | "function" Id "(" Ids ")" Block
-// syntax Pgm ::= List{Top,""}
-//
-// With that, I could have also eliminated the empty block
+
 
 // Desugared Syntax
-
-
   rule if (E) S => if (E) S else {}
   rule for(Start Cond; Step) {S} => {Start while (Cond) {S Step;}}
   rule for(Start Cond; Step) {} => {Start while (Cond) {Step;}}
@@ -105,11 +80,11 @@ endmodule
 module CALCULATOR
   imports CALCULATOR-SYNTAX
   imports DOMAINS
+  imports FLOAT
 
 // Basic Semantic Infrastructure
-
-  syntax Val ::= Int | Bool | String
-               | array(Int,Int)
+  syntax Val ::= Int | Bool | String | Float
+            //    | array(Int,Int)
                | lambda(Ids,Stmt)
   syntax Exp ::= Val
   syntax Exps ::= Vals
@@ -118,13 +93,6 @@ module CALCULATOR
                    | Vals  // TODO: should not need this
 
 // Configuration
-
-  // the syntax declarations below are required because the sorts are
-  // referenced directly by a production and, because of the way KIL to KORE
-  // is implemented, the configuration syntax is not available yet
-  // should simply work once KIL is removed completely
-  // check other definitions for this hack as well
-
   syntax ControlCell
   syntax ControlCellFragment
 
@@ -149,15 +117,14 @@ module CALCULATOR
                   <busy color="cyan"> .Set </busy>
                   <terminated color="red"> .Set </terminated>
                 //<br/> // TODO(KORE): support latex annotations #1799
-                  <input color="magenta" stream="stdin"> .List </input>
+                //   <input color="magenta" stream="stdin"> .List </input>
                   <output color="brown" stream="stdout"> .List </output>
                   <nextLoc color="gray"> 0 </nextLoc>
                 </T>
 
 // Declarations and Initialization
 
-//Variable Declaration
-
+// Variable Declaration
   syntax KItem ::= "undefined"  [latex(\bot)]
 
   rule <k> var X:Id; => . ...</k>
@@ -166,26 +133,25 @@ module CALCULATOR
        <nextLoc> L => L +Int 1 </nextLoc>
 
 // Array Declaration
+//   context var _:Id[HOLE];
 
-  context var _:Id[HOLE];
+//   rule <k> var X:Id[N:Int]; => . ...</k>
+//        <env> Env => Env[X <- L] </env>
+//        <store>... .Map => L |-> array(L +Int 1, N)
+//                           (L +Int 1) ... (L +Int N) |-> undefined ...</store>
+//        <nextLoc> L => L +Int 1 +Int N </nextLoc>
+//     requires N >=Int 0
 
-  rule <k> var X:Id[N:Int]; => . ...</k>
-       <env> Env => Env[X <- L] </env>
-       <store>... .Map => L |-> array(L +Int 1, N)
-                          (L +Int 1) ... (L +Int N) |-> undefined ...</store>
-       <nextLoc> L => L +Int 1 +Int N </nextLoc>
-    requires N >=Int 0
-
-  syntax Id ::= "$1" [token] | "$2" [token]
-  rule var X:Id[N1:Int, N2:Int, Vs:Vals];
-    => var X[N1];
-       {
-         for(var $1 = 0; $1 <= N1 - 1; ++$1) {
-           var $2[N2, Vs];
-           X[$1] = $2;
-         }
-       }
-    [structural]
+//   syntax Id ::= "$1" [token] | "$2" [token]
+//   rule var X:Id[N1:Int, N2:Int, Vs:Vals];
+//     => var X[N1];
+//        {
+//          for(var $1 = 0; $1 <= N1 - 1; ++$1) {
+//            var $2[N2, Vs];
+//            X[$1] = $2;
+//          }
+//        }
+//     [structural]
 
 // Function declaration
   rule <k> function F(Xs) S => . ...</k>
@@ -201,21 +167,17 @@ module CALCULATOR
 // Expressions
 
 // Variable lookup
-
   rule <k> X:Id => V ...</k>
        <env>... X |-> L ...</env>
        <store>... L |-> V:Val ...</store>  [lookup]
 
 
 // Variable/Array increment
-
   context ++(HOLE => lvalue(HOLE))
   rule <k> ++loc(L) => I +Int 1 ...</k>
        <store>... L |-> (I => I +Int 1) ...</store>  [increment]
 
 // Arithmetic operators
-
-
   rule I1 + I2 => I1 +Int I2
   rule Str1 + Str2 => Str1 +String Str2
   rule I1 - I2 => I1 -Int I2
@@ -228,10 +190,8 @@ module CALCULATOR
   rule I1 > I2 => I1 >Int I2
   rule I1 >= I2 => I1 >=Int I2
 
-
   rule V1:Val == V2:Val => V1 ==K V2
   rule V1:Val != V2:Val => V1 =/=K V2
-
 
   rule ! T => notBool(T)
   rule true  && E => E
@@ -239,24 +199,30 @@ module CALCULATOR
   rule true  || _ => true
   rule false || E => E
 
-// Array lookup
+  rule F1:Float + F2:Float => F1 +Float F2
 
-// The [anywhere] feature is underused, because it would only be used
-// at the top of the computation or inside the lvalue wrapper. So it
-// may not be worth, or we may need to come up with a special notation
-// allowing us to enumerate contexts for [anywhere] rules.
-  rule V:Val[N1:Int, N2:Int, Vs:Vals] => V[N1][N2, Vs]
-    [structural, anywhere]
+  rule F1 - F2 => F1 -Float F2
+  rule F1 * F2 => F1 *Float F2
+  rule F1 / F2 => F1 /Float F2 requires F2 =/=K 0
+//   rule - F => 0 -Float F
+  rule F1 < F2 => F1 <Float F2
+  rule F1 <= F2 => F1 <=Float F2
+  rule F1 > F2 => F1 >Float F2
+  rule F1 >= F2 => F1 >=Float F2
 
-  rule array(L,_)[N:Int] => lookup(L +Int N)
-    [structural, anywhere]
+  rule sqrt(F1) => sqrtFloat(F1)
 
-// Size of an array
+// // Array lookup
+//   rule V:Val[N1:Int, N2:Int, Vs:Vals] => V[N1][N2, Vs]
+//     [structural, anywhere]
 
-  rule sizeOf(array(_,N)) => N
+//   rule array(L,_)[N:Int] => lookup(L +Int N)
+//     [structural, anywhere]
+
+// // Size of an array
+//   rule sizeOf(array(_,N)) => N
 
 // Function call
-
   syntax KItem ::=  (Map,K,ControlCellFragment)
 
   rule <k> lambda(Xs,S)(Vs:Vals) ~> K => mkDecls(Xs,Vs) S return; </k>
@@ -277,16 +243,7 @@ module CALCULATOR
   syntax Val ::= "nothing"
   rule return; => return nothing;
 
-
-// Read
-
-  rule <k> read() => I ...</k> <input> ListItem(I:Int) => .List ...</input>  [read]
-
 // Assignment
-
-
-
-
   context (HOLE => lvalue(HOLE)) = _
 
   rule <k> loc(L) = V:Val => V ...</k> <store>... L |-> (_ => V) ...</store>
@@ -294,124 +251,44 @@ module CALCULATOR
 
 // Statements
 
-
 // Blocks
-
   rule {} => .  [structural]
   rule <k> { S } => S ~> setEnv(Env) ...</k>  <env> Env </env>  [structural]
 
-
 // Sequential composition
-
   rule S1:Stmt S2:Stmt => S1 ~> S2  [structural]
 
-
 // Expression statements
-
   rule _:Val; => .
 
 // Conditional
-
   rule if ( true) S else _ => S
   rule if (false) _ else S => S
 
 // While loop
-
-
   rule while (E) S => if (E) {S while(E)S}  [structural]
 
 // Print
-
   rule <k> print(V:Val, Es => Es); ...</k> <output>... .List => ListItem(V) </output>
     [print]
   rule print(.Vals); => .  [structural]
 
-// Exceptions
-
-  syntax KItem ::= (Id,Stmt,K,Map,ControlCellFragment)
-
-  syntax KItem ::= "popx"
-
-  rule <k> (try S1 catch(X) {S2} => S1 ~> popx) ~> K </k>
-       <control>
-         <xstack> .List => ListItem((X, S2, K, Env, C)) ...</xstack>
-         C
-       </control>
-       <env> Env </env>
-
-  rule <k> popx => . ...</k>
-       <xstack> ListItem(_) => .List ...</xstack>
-
-  rule <k> throw V:Val; ~> _ => { var X = V; S2 } ~> K </k>
-       <control>
-         <xstack> ListItem((X, S2, K, Env, C)) => .List ...</xstack>
-         (_ => C)
-       </control>
-       <env> _ => Env </env>
-
-  rule <thread>...
-         <k> spawn S => !T:Int ...</k>
-         <env> Env </env>
-       ...</thread>
-       (.Bag => <thread>...
-               <k> S </k>
-               <env> Env </env>
-               <id> !T </id>
-             ...</thread>)
-
 // Thread termination
-
-
   rule (<thread>... <k>.</k> <holds>H</holds> <id>T</id> ...</thread> => .Bag)
        <busy> Busy => Busy -Set keys(H) </busy>
        <terminated>... .Set => SetItem(T) ...</terminated>
 
-// Thread joining
-
-  rule <k> join T:Int; => . ...</k>
-       <terminated>... SetItem(T) ...</terminated>
-
-// Acquire lock
-
-
-  rule <k> acquire V:Val; => . ...</k>
-       <holds>... .Map => V |-> 0 ...</holds>
-       <busy> Busy (.Set => SetItem(V)) </busy>
-    requires (notBool(V in Busy))  [acquire]
-
-  rule <k> acquire V; => . ...</k>
-       <holds>... V:Val |-> (N => N +Int 1) ...</holds>
-
-// Release lock
-
-  rule <k> release V:Val; => . ...</k>
-       <holds>... V |-> (N => N -Int 1) ...</holds>
-    requires N >Int 0
-
-  rule <k> release V; => . ...</k> <holds>... V:Val |-> 0 => .Map ...</holds>
-       <busy>... SetItem(V) => .Set ...</busy>
-
-// Rendezvous synchronization
-
-  rule <k> rendezvous V:Val; => . ...</k>
-       <k> rendezvous V; => . ...</k>  [rendezvous]
 
 // Auxiliary declarations and operations
-
   syntax Stmt ::= mkDecls(Ids,Vals)  [function]
   rule mkDecls((X:Id, Xs:Ids), (V:Val, Vs:Vals)) => var X=V; mkDecls(Xs,Vs)
   rule mkDecls(.Ids,.Vals) => {}
 
 // Location lookup
-
   syntax Exp ::= lookup(Int)
   rule <k> lookup(L) => V ...</k> <store>... L |-> V:Val ...</store>  [lookup]
 
 // Environment recovery
-
-
-// TODO: eliminate the env wrapper, like we did in IMP++
-
   syntax KItem ::= setEnv(Map)
   rule <k> setEnv(Env) => . ...</k> <env> _ => Env </env>  [structural]
 
@@ -419,29 +296,24 @@ module CALCULATOR
 
 
 // lvalue and loc
-
 // For parsing reasons, we prefer to allow lvalue to take a K
-
   syntax Exp ::= lvalue(K)
   syntax Val ::= loc(Int)
 
 // Local variable
-
   rule <k> lvalue(X:Id => loc(L)) ...</k> <env>... X |-> L:Int ...</env>
     [structural]
 
 // Array element: evaluate the array and its index;
 // then the array lookup rule above applies.
 
-  context lvalue(_::Exp[HOLE::Exps])
-  context lvalue(HOLE::Exp[_::Exps])
+//   context lvalue(_::Exp[HOLE::Exps])
+//   context lvalue(HOLE::Exp[_::Exps])
 
 // Finally, return the address of the desired object member
-
   rule lvalue(lookup(L:Int) => loc(L))  [structural]
 
 // Initializing multiple locations
-
   syntax Map ::= Int "..." Int "|->" K
     [function, latex({#1}\ldots{#2}\mapsto{#3})]
   rule N...M |-> _ => .Map  requires N >Int M
